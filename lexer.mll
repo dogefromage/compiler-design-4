@@ -53,6 +53,17 @@
   ( ")", RPAREN);
   ( "[", LBRACKET);
   ( "]", RBRACKET);
+  
+  ( "<", LTSIGN);
+  ( ">", GTSIGN);
+  
+  ( "<<", LSHIFT);
+  ( ">>", RSHIFT);
+
+  ( "&", LOGIC_AMP);
+  ( "|", LOGIC_PIPE);
+  ( "[&]", BITWISE_AMP);
+  ( "[|]", BITWISE_PIPE);
   ]
 
 let (symbol_table : (string, Parser.token) Hashtbl.t) = Hashtbl.create 1024
@@ -128,6 +139,8 @@ rule token = parse
 
   | ';' | ',' | '{' | '}' | '+' | '-' | '*' | '=' | "==" 
   | "!=" | '!' | '~' | '(' | ')' | '[' | ']' 
+  | '<' | '>' | "<<" | ">>"
+  | '&' | '|' | "[&]" | "[|]"
     { create_token lexbuf }
 
   | _ as c { unexpected_char lexbuf c }

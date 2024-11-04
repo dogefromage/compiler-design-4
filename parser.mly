@@ -38,6 +38,15 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token BANG     /* ! */
 %token GLOBAL   /* global */
 
+%token LTSIGN
+%token GTSIGN
+%token LSHIFT
+%token RSHIFT
+%token LOGIC_AMP
+%token LOGIC_PIPE
+%token BITWISE_AMP
+%token BITWISE_PIPE
+
 %left PLUS DASH
 %left STAR
 %nonassoc BANG
