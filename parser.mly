@@ -14,11 +14,13 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token <string> IDENT
 
 %token TINT     /* int */
+%token TBOOL 
 %token TVOID    /* void */
 %token TSTRING  /* string */
 %token IF       /* if */
 %token ELSE     /* else */
 %token WHILE    /* while */
+%token FOR
 %token RETURN   /* return */
 %token VAR      /* var */
 %token SEMI     /* ; */
@@ -37,15 +39,22 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token TILDE    /* ~ */
 %token BANG     /* ! */
 %token GLOBAL   /* global */
+%token NEW
+%token FALSE
+%token TRUE
 
-%token LTSIGN
-%token GTSIGN
-%token LSHIFT
-%token RSHIFT
-%token LOGIC_AMP
-%token LOGIC_PIPE
-%token BITWISE_AMP
-%token BITWISE_PIPE
+%token LT           /*  < */
+%token LT_EQ        /* <= */
+%token GT           /*  > */
+%token GT_EQ        /* >= */
+%token NOT_EQ       /* != */
+%token L_SHIFT
+%token R_SHIFT_LOGIC
+%token R_SHIFT_ARITH
+%token LOGIC_AND
+%token LOGIC_OR
+%token BITWISE_AND
+%token BITWISE_OR
 
 %left PLUS DASH
 %left STAR
@@ -89,6 +98,7 @@ arglist:
     
 ty:
   | TINT   { TInt }
+  | TBOOL   { TBool }
   | r=rtyp { TRef r } 
 
 %inline ret_ty:
@@ -113,6 +123,8 @@ ty:
 gexp:
   | t=rtyp NULL  { loc $startpos $endpos @@ CNull t }
   | i=INT      { loc $startpos $endpos @@ CInt i }
+  | i=TRUE      { loc $startpos $endpos @@ CBool true }
+  | i=FALSE      { loc $startpos $endpos @@ CBool false }
 
 lhs:  
   | id=IDENT            { loc $startpos $endpos @@ Id id }
@@ -120,6 +132,8 @@ lhs:
                         { loc $startpos $endpos @@ Index (e, i) }
 
 exp:
+  | i=TRUE      { loc $startpos $endpos @@ CBool true }
+  | i=FALSE      { loc $startpos $endpos @@ CBool false }
   | i=INT               { loc $startpos $endpos @@ CInt i }
   | t=rtyp NULL           { loc $startpos $endpos @@ CNull t }
   | e1=exp b=bop e2=exp { loc $startpos $endpos @@ Bop (b, e1, e2) }
