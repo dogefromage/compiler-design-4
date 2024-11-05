@@ -1,5 +1,5 @@
 { open Lexing
-  open Llparser
+  open Llpbottomr
 
   exception SyntaxError of string
 }
@@ -12,7 +12,7 @@ let character = lowercase | uppercase
 let digit = '-'? ['0'-'9']
 let identifier = (character | digit | '_' ) (character | digit | '_' | '.')*
 
-rule token = parse
+rule token = pbottom
   | eof                { EOF       }
   | whitespace+        { token lexbuf }
   | newline+           { token lexbuf }
@@ -74,7 +74,7 @@ rule token = parse
   | "declare" ([^ '\n' '\r'])* newline { token lexbuf }  (* declare acts as a comment for our IR *)
   | _ as c { raise @@ SyntaxError ("Unexpected character: " ^ Char.escaped c) }
 
-and read_string buf = parse
+and read_string buf = pbottom
   | '\\' "00" '"'   { STRING (Buffer.contents buf) }
   | '\\'            { Buffer.add_char buf '\\'; read_string buf lexbuf }
   | [^ '"' '\\']+   { Buffer.add_string buf (Lexing.lexeme lexbuf)

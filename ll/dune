@@ -1,2 +1,2 @@
 (ocamllex (modules lllexer)) 
- (menhir (modules llparser))
+ (menhir (modules llpbottomr))

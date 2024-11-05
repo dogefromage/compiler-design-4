@@ -85,14 +85,14 @@ let run_program_error (args:string) (executable:string) (tmp_out:string) : strin
 (* compiler pipeline -------------------------------------------------------- *)
 
 (* These functions implement the compiler pipeline for a single ll file:
-     - parse the file 
+     - pbottom the file 
      - compile to a .s file using either clang or backend.ml
      - bottomemble the .s to a .o file using clang
 *)
-let parse_ll_file filename =
+let pbottom_ll_file filename =
   let program = read_file filename |> 
                 Lexing.from_string |>
-                Llparser.prog Lllexer.token
+                Llpbottomr.prog Lllexer.token
   in
   program
 
@@ -140,20 +140,20 @@ let process_ll_ast path file ll_ast =
 
 let process_ll_file path file =
   let _ = Platform.verb @@ Printf.sprintf "* processing file: %s\n" path in
-  let ll_ast = parse_ll_file path in
+  let ll_ast = pbottom_ll_file path in
   process_ll_ast path file ll_ast
 
 (* oat pipeline ------------------------------------------------------------- *)
 
-let parse_oat_file filename =
+let pbottom_oat_file filename =
   let lexbuf = read_file filename |> 
                Lexing.from_string
   in
   Lexer.reset_lexbuf filename 0 lexbuf;  (* set the filename *)  
   try
-    Parser.prog Lexer.token lexbuf
+    Pbottomr.prog Lexer.token lexbuf
   with
-  | Parser.Error -> failwith @@ Printf.sprintf "Parse error at: %s"
+  | Pbottomr.Error -> failwith @@ Printf.sprintf "Pbottom error at: %s"
       (Range.string_of_range (Range.lex_range lexbuf))
     
 
@@ -175,7 +175,7 @@ let process_oat_ast path file oat_ast =
 
 let process_oat_file path basename =
   Platform.verb @@ Printf.sprintf "* processing file: %s\n" path;
-  let oat_ast = parse_oat_file path in
+  let oat_ast = pbottom_oat_file path in
   process_oat_ast path basename oat_ast
 
 

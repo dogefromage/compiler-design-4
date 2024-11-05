@@ -1,6 +1,6 @@
 {
   open Lexing
-  open Parser
+  open Pbottomr
   open Range
   
   exception Lexer_error of Range.t * string
@@ -73,7 +73,7 @@
   ( "[|]", BITWISE_OR);
   ]
 
-let (symbol_table : (string, Parser.token) Hashtbl.t) = Hashtbl.create 1024
+let (symbol_table : (string, Pbottomr.token) Hashtbl.t) = Hashtbl.create 1024
   let _ =
     List.iter (fun (str,t) -> Hashtbl.add symbol_table str t) reserved_words
 
@@ -129,7 +129,7 @@ let whitespace = ['\t' ' ']
 let digit = ['0'-'9']
 let hexdigit = ['0'-'9'] | ['a'-'f'] | ['A'-'F']
 
-rule token = parse
+rule token = pbottom
   | eof { EOF }
 
   | "/*" { start_lex := start_pos_of_lexbuf lexbuf; comments 0 lexbuf }
@@ -153,7 +153,7 @@ rule token = parse
 
   | _ as c { unexpected_char lexbuf c }
 
-and directive state = parse
+and directive state = pbottom
   | whitespace+ { directive state lexbuf } 
   | digit+ { if state = 0 then 
                (lnum := int_of_string (lexeme lexbuf); 
@@ -180,7 +180,7 @@ and directive state = parse
   | _ { raise (Lexer_error (lex_long_range lexbuf, 
           Printf.sprintf "Illegal directives")) }
 
-and comments level = parse
+and comments level = pbottom
   | "*/" { if level = 0 then token lexbuf
 	   else comments (level-1) lexbuf }
   | "/*" { comments (level+1) lexbuf}
@@ -189,7 +189,7 @@ and comments level = parse
   | eof	 { raise (Lexer_error (lex_long_range lexbuf,
              Printf.sprintf "comments are not closed")) }
 
-and string in_directive = parse
+and string in_directive = pbottom
   | '"'  { if in_directive = false then
              STRING (get_str())
            else directive 2 lexbuf }  
@@ -199,7 +199,7 @@ and string in_directive = parse
              Printf.sprintf "String is not terminated")) }
   | _    { add_str (Lexing.lexeme_char lexbuf 0); string in_directive lexbuf }
 
-and escaped = parse
+and escaped = pbottom
   | 'n'    { '\n' }
   | 't'    { '\t' }
   | '\\'   { '\\' }

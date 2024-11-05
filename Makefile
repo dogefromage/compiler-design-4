@@ -1,6 +1,6 @@
 INCLUDES= util,x86,grading,ll,sharedtests
 LIBS = unix,str
-SUBMIT := lexer.mll parser.mly frontend.ml team.txt
+SUBMIT := lexer.mll pbottomr.mly frontend.ml team.txt
 
 HWNAME := hw04
 ZIPNAME := $(HWNAME)-submit.zip

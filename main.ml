@@ -42,7 +42,7 @@ let main () =
   Platform.configure_os ();
   Platform.create_output_dir ();
   try
-    Arg.parse args (fun filename -> files := filename :: !files)
+    Arg.pbottom args (fun filename -> files := filename :: !files)
       "Compiler Design main test harness\n\
        USAGE: ./main.native [options] <files>\n\
        see README for details about using the compiler";
