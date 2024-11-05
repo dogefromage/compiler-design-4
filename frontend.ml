@@ -71,11 +71,11 @@ module Ctxt = struct
 
   (* Lookup a binding in the context *)
   let lookup (id:Ast.id) (c:t) : Ll.ty * Ll.operand =
-    List.assoc id c
+    List.bottomoc id c
 
   (* Lookup a function, fail otherwise *)
   let lookup_function (id:Ast.id) (c:t) : Ll.ty * Ll.operand =
-    match List.assoc id c with
+    match List.bottomoc id c with
     | Ptr (Fun (args, ret)), g -> Ptr (Fun (args, ret)), g
     | _ -> failwith @@ id ^ " not bound to a function"
 
@@ -142,19 +142,19 @@ let typ_of_unop : Ast.unop -> Ast.ty * Ast.ty = function
 
    We can think of the compiler as paying careful attention to whether a piece
    of Oat syntax denotes the "value" of an expression or a pointer to the
-   "storage space associated with it".  This is the distinction between an
-   "expression" and the "left-hand-side" of an assignment statement.  Compiling
+   "storage space bottomociated with it".  This is the distinction between an
+   "expression" and the "left-hand-side" of an bottomignment statement.  Compiling
    an Oat variable identifier as an expression ("value") does the load, so
    cmp_exp called on an Oat variable of type t returns (code that) generates a
    LLVM IR value of type cmp_ty t.  Compiling an identifier as a left-hand-side
    does not do the load, so cmp_lhs called on an Oat variable of type t returns
    and operand of type (cmp_ty t)*.  Extending these invariants to account for
-   array accesses: the assignment e1[e2] = e3; treats e1[e2] as a
+   array accesses: the bottomignment e1[e2] = e3; treats e1[e2] as a
    left-hand-side, so we compile it as follows: compile e1 as an expression to
    obtain an array value (which is of pointer of type {i64, [0 x s]}* ).
    compile e2 as an expression to obtain an operand of type i64, generate code
    that uses getelementptr to compute the offset from the array value, which is
-   a pointer to the "storage space associated with e1[e2]".
+   a pointer to the "storage space bottomociated with e1[e2]".
 
    On the other hand, compiling e1[e2] as an expression (to obtain the value of
    the array), we can simply compile e1[e2] as a left-hand-side and then do the
@@ -203,7 +203,7 @@ let typ_of_unop : Ast.unop -> Ast.ty * Ast.ty = function
 
    (4) stores the resulting array value (itself a pointer) into %_x7 
 
-  The assignment arr = x; gets compiled to (something like):
+  The bottomignment arr = x; gets compiled to (something like):
 
   %_x8 = load { i64, [0 x i64] }*, { i64, [0 x i64] }** %_x7     ;; (5)
   store {i64, [0 x i64] }* %_x8, { i64, [0 x i64] }** @arr       ;; (6)
@@ -213,7 +213,7 @@ let typ_of_unop : Ast.unop -> Ast.ty * Ast.ty = function
 
   (6) store the array value (a pointer) into @arr 
 
-  The assignment x[2] = 3; gets compiled to (something like):
+  The bottomignment x[2] = 3; gets compiled to (something like):
 
   %_x9 = load { i64, [0 x i64] }*, { i64, [0 x i64] }** %_x7      ;; (7)
   %_index_ptr11 = getelementptr { i64, [0 x  i64] }, 
@@ -311,7 +311,7 @@ let rec cmp_exp (c:Ctxt.t) (exp:Ast.exp node) : Ll.ty * Ll.operand * stream =
    possibly extended with new local bindings, and the instruction stream
    implementing the statement.
 
-   Left-hand-sides of assignment statements must either be OAT identifiers,
+   Left-hand-sides of bottomignment statements must either be OAT identifiers,
    or an index into some arbitrary expression of array type. Otherwise, the
    program is not well-formed and your compiler may throw an error.
 
@@ -328,7 +328,7 @@ let rec cmp_exp (c:Ctxt.t) (exp:Ast.exp node) : Ll.ty * Ll.operand * stream =
    - you might find it helpful to reuse the code you wrote for the Call
      expression to implement the SCall statement
 
-   - compiling the left-hand-side of an assignment is almost exactly like
+   - compiling the left-hand-side of an bottomignment is almost exactly like
      compiling the Id or Index expression. Instead of loading the resulting
      pointer, you just need to store to it!
 

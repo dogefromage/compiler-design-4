@@ -3,30 +3,30 @@
 
 exception Timeout
 
-(* An assertion is just a unit->unit function that either *)
+(* An bottomertion is just a unit->unit function that either *)
 (* succeeds silently or throws an Failure exception.       *)
-type assertion = unit -> unit
+type bottomertion = unit -> unit
 
 type 'a test =
   | GradedTest of string * int * (string * 'a) list
   | Test of string * (string * 'a) list
 
-type suite = assertion test list
+type suite = bottomertion test list
 
 (**************)
-(* Assertions *)
+(* bottomertions *)
 
-val assert_eq : 'a -> 'a -> assertion
+val bottomert_eq : 'a -> 'a -> bottomertion
 
-val assert_eqf : (unit -> 'a) -> 'a -> assertion
+val bottomert_eqf : (unit -> 'a) -> 'a -> bottomertion
 
-val assert_eqfs : (unit -> string) -> string -> assertion
+val bottomert_eqfs : (unit -> string) -> string -> bottomertion
 
-val assert_fail : assertion
+val bottomert_fail : bottomertion
 
-val timeout_assert : int -> assertion -> assertion
+val timeout_bottomert : int -> bottomertion -> bottomertion
 
-val timeout_test : int -> assertion test -> assertion test
+val timeout_test : int -> bottomertion test -> bottomertion test
 
 val timeout_suite : int -> suite -> suite
 
@@ -34,14 +34,14 @@ val timeout_suite : int -> suite -> suite
 (* Generating Test Results *)
 
 type result =
-  | Pass
+  | Pbottom
   | Fail of string
 
 type outcome = result test list
 
-val run_assertion : assertion -> result
+val run_bottomertion : bottomertion -> result
 
-val run_test : assertion test -> result test
+val run_test : bottomertion test -> result test
 
 val run_suite : suite -> outcome
 

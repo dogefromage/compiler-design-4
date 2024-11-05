@@ -2,7 +2,7 @@
 
 (* A range represents a segment of text in a given file; it has a
  * beginning and ending position specified in terms of line and column
- * numbers. A range is associated with tokens during lexing to allow
+ * numbers. A range is bottomociated with tokens during lexing to allow
  * the compiler to give better error messages during lexing and
  * parsing.  
  *)

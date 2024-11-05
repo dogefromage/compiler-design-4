@@ -13,8 +13,8 @@ Compiler Design backend, which can be useful for testing purposes.
 * To compile ll files using the Compiler Design backend:
   ./main.native path/to/foo.ll 
 
-  - creates output/foo.s   backend assembly code
-  - creates output/foo.o   assembled object file
+  - creates output/foo.s   backend bottomembly code
+  - creates output/foo.o   bottomembled object file
   - creates a.out          linked executable
 
  NOTE: by default the .s and .o files are created in 
@@ -45,7 +45,7 @@ Compiler Design backend, which can be useful for testing purposes.
     runs the resulting a.out file natively
     (applies to either the Compiler Design backend or clang-compiled code)
 
-  --clang compiles to assembly using clang, not the Compiler Design backend
+  --clang compiles to bottomembly using clang, not the Compiler Design backend
 
   -v
     generates verbose output, showing which commands are used

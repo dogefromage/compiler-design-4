@@ -8,7 +8,7 @@ let print_x86_flag = ref false      (* print the generated x86 code? *)
 let print_ast_flag = ref false
 let print_oat_flag = ref false
 let clang = ref false          (* use the clang backend? *)
-let assemble = ref true        (* assemble the .s to .o files? *)
+let bottomemble = ref true        (* bottomemble the .s to .o files? *)
 let link = ref true            (* combine multiple .o files executable? *)
 let execute_x86 = ref false    (* run the resulting x86 program? *)
 let executable_filename = ref "a.out"
@@ -87,7 +87,7 @@ let run_program_error (args:string) (executable:string) (tmp_out:string) : strin
 (* These functions implement the compiler pipeline for a single ll file:
      - parse the file 
      - compile to a .s file using either clang or backend.ml
-     - assemble the .s to a .o file using clang
+     - bottomemble the .s to a .o file using clang
 *)
 let parse_ll_file filename =
   let program = read_file filename |> 
@@ -134,7 +134,7 @@ let process_ll_ast path file ll_ast =
       ()
     end
   in
-  let _ = if !assemble then Platform.assemble dot_s_file dot_o_file in
+  let _ = if !bottomemble then Platform.bottomemble dot_s_file dot_o_file in
   let _ = add_link_file dot_o_file in 
   ()
 
@@ -197,10 +197,10 @@ let process_files files =
 
     List.iter process_file files;
 
-    ( if !assemble && !link then
+    ( if !bottomemble && !link then
         Platform.link (List.rev !link_files@["runtime.c"]) !executable_filename );
 
-    ( if !assemble && !link && !execute_x86 then
+    ( if !bottomemble && !link && !execute_x86 then
         let ret = run_executable "" !executable_filename in
         print_banner @@ Printf.sprintf "Executing: %s" !executable_filename;
         Printf.printf "* %s returned %d\n" !executable_filename ret )

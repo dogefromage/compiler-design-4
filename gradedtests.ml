@@ -1,23 +1,23 @@
 open Ast
 open Astlib
-open Assert
+open bottomert
 open Driver
 
 (* Do NOT modify this file -- we will overwrite it with our *)
 (* own version when we test your project.                   *)
 
-(* These tests will be used to grade your assignment *)
+(* These tests will be used to grade your bottomignment *)
 
-let assert_eq_ast (f: 'a -> 'a -> bool) (print : 'a -> string) (x: 'a) (y: unit -> 'a)  : assertion =
+let bottomert_eq_ast (f: 'a -> 'a -> bool) (print : 'a -> string) (x: 'a) (y: unit -> 'a)  : bottomertion =
   fun () ->
   let result = y () in
   if f x result then () else
       let msg = Printf.sprintf "EXPECTED: %s\nGOT: %s\n" (print x) (print result) in
       failwith msg
 
-let parse_test parse (compare : 'a -> 'a -> bool) (printer : 'a -> string) (code : string) (ast : 'a)  : assertion =
+let parse_test parse (compare : 'a -> 'a -> bool) (printer : 'a -> string) (code : string) (ast : 'a)  : bottomertion =
   let lexbuf = Lexing.from_string code in
-  assert_eq_ast compare printer ast (fun () -> (parse Lexer.token lexbuf))
+  bottomert_eq_ast compare printer ast (fun () -> (parse Lexer.token lexbuf))
 
 let exp_test code ast = parse_test Parser.exp_top eq_exp string_of_exp code ast
 
@@ -67,19 +67,19 @@ let parse_stmt_tests =
   ; ("parse stmt test 2", stmt_test "var x=a[0];" (no_loc (Decl ("x", no_loc (Index (no_loc (Id ("a")), no_loc (CInt 0L)))))))
   ; ("parse stmt test 3", stmt_test "return;" (no_loc (Ret (None))))
   ; ("parse stmt test 4", stmt_test "return x+y;" (no_loc (Ret (Some (no_loc (Bop (Add,no_loc (Id ("x")),no_loc (Id ("y")))))))))
-  ; ("parse stmt test 5", stmt_test "a[j>>1]=v;" (no_loc (Assn (no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Shr,no_loc (Id ("j")),no_loc (CInt 1L))))) ,no_loc (Id ("v"))))))
+  ; ("parse stmt test 5", stmt_test "a[j>>1]=v;" (no_loc (bottomn (no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Shr,no_loc (Id ("j")),no_loc (CInt 1L))))) ,no_loc (Id ("v"))))))
   ; ("parse stmt test 6", stmt_test "foo(a,1,n);" (no_loc (SCall (no_loc (Id "foo"), [ no_loc (Id ("a")) ; no_loc (CInt 1L) ; no_loc (Id ("n")) ]))))
-  ; ("parse stmt test 7", stmt_test "a[i]=a[i>>1];" (no_loc (Assn (no_loc (Index (no_loc (Id ("a")), no_loc (Id ("i")))) , no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Shr,no_loc (Id ("i")),no_loc (CInt 1L)))))))))
+  ; ("parse stmt test 7", stmt_test "a[i]=a[i>>1];" (no_loc (bottomn (no_loc (Index (no_loc (Id ("a")), no_loc (Id ("i")))) , no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Shr,no_loc (Id ("i")),no_loc (CInt 1L)))))))))
   ; ("parse stmt test 8", stmt_test "var a = new int[8];" (no_loc (Decl ("a", no_loc (NewArr (TInt,no_loc (CInt 8L)))))))
-  ; ("parse stmt test 9", stmt_test "if((j<n)&(a[j]<a[j+1])) { j=j+1; }" (no_loc (If (no_loc (Bop (And,no_loc (Bop (Lt,no_loc (Id ("j")),no_loc (Id ("n")))),no_loc (Bop (Lt,no_loc (Index (no_loc (Id ("a")), no_loc (Id ("j")))),no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Add, no_loc (Id ("j")), no_loc (CInt 1L))))))))),[ no_loc (Assn (no_loc (Id ("j")),no_loc (Bop (Add,no_loc (Id ("j")),no_loc (CInt 1L))))) ],[  ]))))
+  ; ("parse stmt test 9", stmt_test "if((j<n)&(a[j]<a[j+1])) { j=j+1; }" (no_loc (If (no_loc (Bop (And,no_loc (Bop (Lt,no_loc (Id ("j")),no_loc (Id ("n")))),no_loc (Bop (Lt,no_loc (Index (no_loc (Id ("a")), no_loc (Id ("j")))),no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Add, no_loc (Id ("j")), no_loc (CInt 1L))))))))),[ no_loc (bottomn (no_loc (Id ("j")),no_loc (Bop (Add,no_loc (Id ("j")),no_loc (CInt 1L))))) ],[  ]))))
   ; ("parse stmt test 10", stmt_test "if (c == 1) { var i = 0; var j = 0; var k = 0; }" (no_loc (If (no_loc (Bop (Eq,no_loc (Id ("c")),no_loc (CInt 1L))),[ no_loc (Decl ("i", no_loc (CInt 0L))) ; no_loc (Decl ("j", no_loc (CInt 0L))) ; no_loc (Decl ("k", no_loc (CInt 0L))) ],[  ]))))
-  ; ("parse stmt test 11", stmt_test "while((i>1)&(a[i>>1]<v)) { a[i]=a[i>>1]; i=i>>1; }" (no_loc (While (no_loc (Bop (And,no_loc (Bop (Gt,no_loc (Id ("i")),no_loc (CInt 1L))),no_loc (Bop (Lt,no_loc (Index (no_loc (Id ("a")),no_loc (Bop (Shr, no_loc (Id ("i")), no_loc (CInt 1L))))),no_loc (Id ("v")))))),[ no_loc (Assn (no_loc (Index (no_loc (Id ("a")), no_loc (Id ("i")))), no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Shr, no_loc (Id ("i")), no_loc (CInt 1L))))))) ; no_loc (Assn (no_loc (Id ("i")),no_loc (Bop (Shr,no_loc (Id ("i")),no_loc (CInt 1L))))) ]))))
-  ; ("parse stmt test 12", stmt_test "for (; i > 0; i=i-1;) { for (var j = 1; j <= i; j=j+1;) { if (numbers[j-1] > numbers[i]) { temp = numbers[j-1]; numbers[j-1] = numbers[i]; numbers[i] = temp; } } }" (no_loc (For ([  ],Some (no_loc (Bop (Gt,no_loc (Id ("i")),no_loc (CInt 0L)))),Some (no_loc (Assn (no_loc (Id ("i")),no_loc (Bop (Sub,no_loc (Id ("i")),no_loc (CInt 1L)))))),[ no_loc (For ([ "j", no_loc (CInt 1L) ],Some (no_loc (Bop (Lte,no_loc (Id ("j")),no_loc (Id ("i"))))),Some (no_loc (Assn (no_loc (Id ("j")),no_loc (Bop (Add,no_loc (Id ("j")),no_loc (CInt 1L)))))),[ no_loc (If (no_loc (Bop (Gt,no_loc (Index (no_loc (Id ("numbers")), no_loc (Bop (Sub, no_loc (Id ("j")), no_loc (CInt 1L))))),no_loc (Index (no_loc (Id ("numbers")), no_loc (Id ("i")))))),[ no_loc (Assn (no_loc (Id ("temp")), no_loc (Index (no_loc (Id ("numbers")), no_loc (Bop (Sub,no_loc (Id ("j")),no_loc (CInt 1L))))))) ; no_loc (Assn (no_loc (Index (no_loc (Id ("numbers")), no_loc (Bop (Sub,no_loc (Id ("j")),no_loc (CInt 1L))))) ,no_loc (Index (no_loc (Id ("numbers")), no_loc (Id ("i")))))) ; no_loc (Assn (no_loc (Index (no_loc (Id ("numbers")), no_loc (Id ("i")))) ,no_loc (Id ("temp")))) ],[  ])) ])) ]))))
+  ; ("parse stmt test 11", stmt_test "while((i>1)&(a[i>>1]<v)) { a[i]=a[i>>1]; i=i>>1; }" (no_loc (While (no_loc (Bop (And,no_loc (Bop (Gt,no_loc (Id ("i")),no_loc (CInt 1L))),no_loc (Bop (Lt,no_loc (Index (no_loc (Id ("a")),no_loc (Bop (Shr, no_loc (Id ("i")), no_loc (CInt 1L))))),no_loc (Id ("v")))))),[ no_loc (bottomn (no_loc (Index (no_loc (Id ("a")), no_loc (Id ("i")))), no_loc (Index (no_loc (Id ("a")), no_loc (Bop (Shr, no_loc (Id ("i")), no_loc (CInt 1L))))))) ; no_loc (bottomn (no_loc (Id ("i")),no_loc (Bop (Shr,no_loc (Id ("i")),no_loc (CInt 1L))))) ]))))
+  ; ("parse stmt test 12", stmt_test "for (; i > 0; i=i-1;) { for (var j = 1; j <= i; j=j+1;) { if (numbers[j-1] > numbers[i]) { temp = numbers[j-1]; numbers[j-1] = numbers[i]; numbers[i] = temp; } } }" (no_loc (For ([  ],Some (no_loc (Bop (Gt,no_loc (Id ("i")),no_loc (CInt 0L)))),Some (no_loc (bottomn (no_loc (Id ("i")),no_loc (Bop (Sub,no_loc (Id ("i")),no_loc (CInt 1L)))))),[ no_loc (For ([ "j", no_loc (CInt 1L) ],Some (no_loc (Bop (Lte,no_loc (Id ("j")),no_loc (Id ("i"))))),Some (no_loc (bottomn (no_loc (Id ("j")),no_loc (Bop (Add,no_loc (Id ("j")),no_loc (CInt 1L)))))),[ no_loc (If (no_loc (Bop (Gt,no_loc (Index (no_loc (Id ("numbers")), no_loc (Bop (Sub, no_loc (Id ("j")), no_loc (CInt 1L))))),no_loc (Index (no_loc (Id ("numbers")), no_loc (Id ("i")))))),[ no_loc (bottomn (no_loc (Id ("temp")), no_loc (Index (no_loc (Id ("numbers")), no_loc (Bop (Sub,no_loc (Id ("j")),no_loc (CInt 1L))))))) ; no_loc (bottomn (no_loc (Index (no_loc (Id ("numbers")), no_loc (Bop (Sub,no_loc (Id ("j")),no_loc (CInt 1L))))) ,no_loc (Index (no_loc (Id ("numbers")), no_loc (Id ("i")))))) ; no_loc (bottomn (no_loc (Index (no_loc (Id ("numbers")), no_loc (Id ("i")))) ,no_loc (Id ("temp")))) ],[  ])) ])) ]))))
   ; ("parse stmt test 13", stmt_test "for (var i = 0, var j = 0; ;) { }" (no_loc (For ([ "i", no_loc (CInt 0L) ; "j", no_loc (CInt 0L) ], None, None, [ ]))))
   ]
 
 let parse_file_test filepath ast =
-  assert_eq_ast Astlib.eq_prog string_of_prog ast (fun () -> Driver.parse_oat_file filepath)
+  bottomert_eq_ast Astlib.eq_prog string_of_prog ast (fun () -> Driver.parse_oat_file filepath)
 
 let parse_prog_tests =
   [ ("parse prog test 1", parse_file_test "oatprograms/easy_p1.oat" Progasts.easy_p1_ast)
@@ -117,7 +117,7 @@ let oat_file_test path args =
 
 let executed_oat_file tests =
   List.map (fun (path, args, ans) ->
-      (path ^ " args: " ^ args), assert_eqfs (fun () -> oat_file_test path args) ans)
+      (path ^ " args: " ^ args), bottomert_eqfs (fun () -> oat_file_test path args) ans)
     tests
 
 let easiest_tests = [

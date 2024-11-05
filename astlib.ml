@@ -179,7 +179,7 @@ and print_stmt_aux fmt s =
   begin match s.elt with
     | Decl d -> print_vdecl_aux ";" fmt d
 
-    | Assn (p,e) ->
+    | bottomn (p,e) ->
         pp_open_box fmt 0;
 	    print_exp_aux 0 fmt p;
 	    pps " ="; ppsp ();
@@ -392,7 +392,7 @@ let ml_string_of_vdecl (d:vdecl node) : string =
 
 let rec ml_string_of_stmt_aux (s:stmt) : string =
   match s with
-  | Assn (p, e) -> sp "Assn (%s,%s)" (ml_string_of_exp p) (ml_string_of_exp e)
+  | bottomn (p, e) -> sp "bottomn (%s,%s)" (ml_string_of_exp p) (ml_string_of_exp e)
   | Decl d -> sp "Decl (%s)" (ml_string_of_vdecl_aux d)
   | Ret e -> sp "Ret (%s)" (ml_string_of_option ml_string_of_exp e)
   | SCall (exp, exps) -> 
@@ -512,7 +512,7 @@ let eq_vdecl (d1:vdecl node) (d2:vdecl node) : bool =
 
 let rec eq_stmt_aux (s1: stmt) (s2: stmt) : bool =
   begin match s1, s2 with
-  | Assn (p1, e1), Assn (p2, e2) -> eq_exp p1 p2 && eq_exp e1 e2
+  | bottomn (p1, e1), bottomn (p2, e2) -> eq_exp p1 p2 && eq_exp e1 e2
   | Decl d1, Decl d2 -> eq_vdecl_aux d1 d2
   | Ret eo1, Ret eo2 -> eq_option eq_exp eo1 eo2
   | SCall (x1, es1), SCall (x2, es2) -> eq_exp x1 x2 && eq_list eq_exp es1 es2

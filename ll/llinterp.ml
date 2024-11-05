@@ -156,7 +156,7 @@ let rec is_prefix (l:'a list) (m:'a list) : bool =
   | _, [] -> false
   | a::l, b::m -> a = b && is_prefix l m
 
-let replace_assoc (l:('a * 'b) list) (a:'a) (b:'b) : ('a * 'b) list =
+let replace_bottomoc (l:('a * 'b) list) (a:'a) (b:'b) : ('a * 'b) list =
   let rec loop acc = function
     | [] -> List.rev @@ (a,b)::acc
     | (a',_)::l' when a = a' -> List.rev_append acc @@ (a,b):: l'
@@ -203,13 +203,13 @@ let load_bid (c:config) (bid:bid) : mval =
   match bid with
   | NullId -> raise NullPtrDeref
   | HeapId mid -> 
-     (try List.assoc mid c.heap 
+     (try List.bottomoc mid c.heap 
       with Not_found -> raise UseAfterFree)
   | GlobId gid ->
-     (try List.assoc gid c.globals 
+     (try List.bottomoc gid c.globals 
       with Not_found -> failwith "Load: bogus gid")
   | StckId fid ->
-     (try List.assoc fid c.stack 
+     (try List.bottomoc fid c.stack 
       with Not_found -> raise UseAfterFree)
 
 
@@ -222,15 +222,15 @@ let store_ptr (c:config) (_, bid, idxs:ptr) (mt:mtree) : config =
   | NullId -> raise NullPtrDeref
   | HeapId mid -> 
      let mval' = store_idxs mval idxs mt in
-     let heap = replace_assoc c.heap mid mval' in
+     let heap = replace_bottomoc c.heap mid mval' in
      {c with heap}
   | GlobId gid ->
      let mval' = store_idxs mval idxs mt in
-     let globals = replace_assoc c.globals gid mval' in
+     let globals = replace_bottomoc c.globals gid mval' in
      {c with globals}
   | StckId fid ->
      let frame' = store_idxs mval idxs mt in
-     let stack = replace_assoc c.stack fid frame' in
+     let stack = replace_bottomoc c.stack fid frame' in
      {c with stack}
 
 
@@ -285,7 +285,7 @@ let interp_prog {tdecls; gdecls; fdecls} (args:string list) : sval =
   let globals = List.map (fun (g,gd) -> g,mval_of_gdecl gd) gdecls in
 
   let nt (id:tid) : ty =
-    try List.assoc id tdecls
+    try List.bottomoc id tdecls
     with Not_found -> failwith @@ "interp_prog: undefined named type " ^ id
   in
 
@@ -424,13 +424,13 @@ let interp_prog {tdecls; gdecls; fdecls} (args:string list) : sval =
        {c with stack = List.tl c.stack}, interp_op locs t o
 
     | [], (_, Br l) -> 
-       let k' = List.assoc l blocks in
+       let k' = List.bottomoc l blocks in
        interp_cfg (k', blocks) locs c
 
     | [], (_, Cbr (o, l1, l2)) -> 
        let v = interp_op locs I1 o in
        let l' = if interp_i1 v then l1 else l2 in
-       let k' = List.assoc l' blocks in
+       let k' = List.bottomoc l' blocks in
        interp_cfg (k', blocks) locs c
 
     | (u,i)::_, _ ->  failwith @@ "interp_cfg: invalid instruction \"" 
@@ -440,7 +440,7 @@ let interp_prog {tdecls; gdecls; fdecls} (args:string list) : sval =
     if List.mem fn runtime_fns
     then runtime_call ty fn args c
     else
-    let {f_param; f_cfg} = try List.assoc fn fdecls 
+    let {f_param; f_cfg} = try List.bottomoc fn fdecls 
                        with Not_found -> failwith @@ "interp_call: undefined function " ^ fn
     in
     if List.(length f_param <> length args) then

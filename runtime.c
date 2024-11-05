@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <bottomert.h>
 #include <string.h>
 #include <stdint.h>
 
 /* Oat Internal Functions --------------------------------------------------- */
 
 int64_t* oat_alloc_array (int64_t size) {
-  assert (size >= 0);
+  bottomert (size >= 0);
   int64_t *arr = (int64_t*)calloc(size+1, sizeof(int64_t));
   arr[0] = size;
   return arr;
@@ -18,10 +18,10 @@ int64_t* oat_alloc_array (int64_t size) {
 int64_t* array_of_string (char *str) {
   int64_t len, i, *arr;
 
-  assert (NULL != str);
+  bottomert (NULL != str);
 
   len = strlen(str);
-  assert (len >= 0);
+  bottomert (len >= 0);
 
   arr = (int64_t*)malloc(sizeof(int64_t) * (len+1));
   arr[0] = len;
@@ -36,16 +36,16 @@ char* string_of_array (int64_t *arr) {
   int64_t len, i;
   char *str;
 
-  assert (NULL != arr);
+  bottomert (NULL != arr);
 
   len = arr[0];
-  assert (len >= 0);
+  bottomert (len >= 0);
 
   str = malloc(sizeof(char) * (len+1));
   
   for (i=0; i<len; i++) {
     str[i] = (char)arr[i+1];
-    assert (0 != str[i]);
+    bottomert (0 != str[i]);
   }
   str[len] = 0;
 
@@ -53,7 +53,7 @@ char* string_of_array (int64_t *arr) {
 }
 
 int64_t length_of_string (char *str) {
-  assert (NULL != str);
+  bottomert (NULL != str);
   return strlen(str);
 }
 
@@ -78,7 +78,7 @@ char* string_cat(char* l, char* r) {
 }
 
 void print_string (char* str) {
-  assert (NULL != str);
+  bottomert (NULL != str);
   printf ("%s", str);
 }
 

@@ -1,5 +1,5 @@
 (* -------------------------------------------------------------------------- *)
-(** Assembling and linking for X86.  Depends on the underlying OS platform    *)
+(** bottomembling and linking for X86.  Depends on the underlying OS platform    *)
 
 open Printf
 open Unix
@@ -91,7 +91,7 @@ let enable_verbose () =
   verb_os ()
 
 
-(* create the output directory, which is assumed to exist *)
+(* create the output directory, which is bottomumed to exist *)
 let create_output_dir () =
   try ignore (stat !output_path) with
   | Unix_error (ENOENT, _, _) ->
@@ -193,7 +193,7 @@ let clang_compile (dot_ll : string) (dot_s : string) : unit =
   sh (sprintf "%s%s %s" (clang_cmd ()) dot_s dot_ll) raise_error
 
 
-let assemble (dot_s : string) (dot_o : string) : unit =
+let bottomemble (dot_s : string) (dot_o : string) : unit =
   sh (sprintf "%s%s %s" (as_cmd ()) dot_o dot_s) raise_error
 
 

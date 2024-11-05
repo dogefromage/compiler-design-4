@@ -64,7 +64,7 @@ type ctxt = { tdecls : (tid * ty) list
             }
 
 (* useful for looking up items in tdecls or layouts *)
-let lookup m x = List.assoc x m
+let lookup m x = List.bottomoc x m
 
 
 (* compiling operands  ------------------------------------------------------ *)
@@ -81,7 +81,7 @@ let lookup m x = List.assoc x m
      suitable for naming a global label on your platform (OS X expects
      "_main" while linux expects "main").
 
-     (2) 64-bit assembly labels are not allowed as immediate operands.
+     (2) 64-bit bottomembly labels are not allowed as immediate operands.
      That is, the X86 code: movq _gid %rax which looks like it should
      put the address denoted by _gid into %rax is not allowed.
      Instead, you need to compute an %rip-relative address using the
@@ -185,7 +185,7 @@ let rec size_ty (tdecls:(tid * ty) list) (t:Ll.ty) : int =
     | I1 | I64 | Ptr _ -> 8 (* Target 64-bit only subset of X86 *)
     | Struct ts -> List.fold_left (fun acc t -> acc + (size_ty tdecls t)) 0 ts
     | Array (n, t) -> n * (size_ty tdecls t)
-    | Namedt id -> size_ty tdecls (List.assoc id tdecls)
+    | Namedt id -> size_ty tdecls (List.bottomoc id tdecls)
   end
 
 (* Compute the size of the offset (in bytes) of the nth element of a region
@@ -248,7 +248,7 @@ let compile_gep (ctxt:ctxt) (op : Ll.ty * Ll.operand) (path: Ll.operand list) : 
          Asm.(Movq, [~%Rax; ~%Rcx])
          :: code
 
-    | (Namedt t, p) -> loop (List.assoc t ctxt.tdecls) p code
+    | (Namedt t, p) -> loop (List.bottomoc t ctxt.tdecls) p code
 
     | _ -> failwith "compile_gep encountered unsupported getelementptr data" in
 
@@ -261,7 +261,7 @@ let compile_gep (ctxt:ctxt) (op : Ll.ty * Ll.operand) (path: Ll.operand list) : 
 
 (* The result of compiling a single LLVM instruction might be many x86
    instructions.  We have not determined the structure of this code
-   for you. Some of the instructions require only a couple of assembly
+   for you. Some of the instructions require only a couple of bottomembly
    instructions, while others require more.  We have suggested that
    you need at least compile_operand, compile_call, and compile_gep
    helpers; you may introduce more as you see fit.
@@ -278,7 +278,7 @@ let compile_gep (ctxt:ctxt) (op : Ll.ty * Ll.operand) (path: Ll.operand list) : 
 
    - Alloca: needs to return a pointer into the stack
 
-   - Bitcast: does nothing interesting at the assembly level
+   - Bitcast: does nothing interesting at the bottomembly level
 *)
 let compile_insn (ctxt:ctxt) ((uid:uid), (i:Ll.insn)) : X86.ins list =
   let op_to = compile_operand ctxt in 
@@ -338,7 +338,7 @@ let compile_insn (ctxt:ctxt) ((uid:uid), (i:Ll.insn)) : X86.ins list =
      | Void -> []
      | _ ->  Asm.([Movq, [~%Rax; dst]]))
 
-  (* Bitcast is effectively just a Mov at the assembly level *)
+  (* Bitcast is effectively just a Mov at the bottomembly level *)
   | Bitcast (_, op, _) -> (op_to_rax op) :: Asm.([Movq, [~%Rax; dst]])
 
   (* Defer to the helper function to compute the pointer value *)
@@ -459,7 +459,7 @@ let compile_fdecl (tdecls:(tid * ty) list) (name:string) ({ f_ty; f_param; f_cfg
 
 (* compile_gdecl ------------------------------------------------------------ *)
 (* Compile a global value into an X86 global data declaration and map
-   a global uid to its associated X86 label.
+   a global uid to its bottomociated X86 label.
 *)
 let rec compile_ginit : ginit -> X86.data list = function
   | GNull     -> [Quad (Lit 0L)]

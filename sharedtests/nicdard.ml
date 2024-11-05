@@ -7,7 +7,7 @@ let easy_tests =
   ; ("vdecl.oat", "", "0")
   ; ("neg.oat", "", "246")
   ; ("return0.oat", "", "1")
-  ; ("assign.oat", "", "246")
+  ; ("bottomign.oat", "", "246")
   ; ("while.oat", "", "0")
   ; ("while1.oat", "", "1")
   ; ("equality.oat", "", "1")

@@ -58,10 +58,10 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 
 %left PLUS DASH
 %left STAR
-%nonassoc BANG
-%nonassoc TILDE
-%nonassoc LBRACKET
-%nonassoc LPAREN
+%nonbottomoc BANG
+%nonbottomoc TILDE
+%nonbottomoc LBRACKET
+%nonbottomoc LPAREN
 
 /* ---------------------------------------------------------------------- */
 
@@ -150,7 +150,7 @@ vdecl:
 
 stmt: 
   | d=vdecl SEMI        { loc $startpos $endpos @@ Decl(d) }
-  | p=lhs EQ e=exp SEMI { loc $startpos $endpos @@ Assn(p,e) }
+  | p=lhs EQ e=exp SEMI { loc $startpos $endpos @@ bottomn(p,e) }
   | e=exp LPAREN es=separated_list(COMMA, exp) RPAREN SEMI
                         { loc $startpos $endpos @@ SCall (e, es) }
   | ifs=if_stmt         { ifs }

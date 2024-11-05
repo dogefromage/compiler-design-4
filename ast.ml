@@ -61,7 +61,7 @@ type cfield = id * exp node
 type vdecl = id * exp node
 
 type stmt =
-| Assn of exp node * exp node
+| bottomn of exp node * exp node
 | Decl of vdecl
 | Ret of exp node option
 | SCall of exp node * exp node list

@@ -1,6 +1,6 @@
 (* X86lite language representation. *)
 
-(* assembler syntax --------------------------------------------------------- *)
+(* bottomembler syntax --------------------------------------------------------- *)
 
 (* Labels for code blocks and global data. *)
 type lbl = string

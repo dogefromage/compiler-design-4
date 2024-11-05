@@ -1,4 +1,4 @@
-open Assert
+open bottomert
 
 let shared_suite : suite =
   [ Test ("Dbernhard tests", Dbernhard.dbernhard_tests)
