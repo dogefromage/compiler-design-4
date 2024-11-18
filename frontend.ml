@@ -287,22 +287,59 @@ let oat_alloc_array (t:Ast.ty) (size:Ll.operand) : Ll.ty * operand * stream =
     [ arr_id, Call(arr_ty, Gid "oat_alloc_array", [I64, size])
     ; ans_id, Bitcast(arr_ty, Id arr_id, ans_ty) ]
 
+let load_exp ((ty, op, stream): Ll.ty * Ll.operand * stream) : Ll.ty * Ll.operand * stream =
+  begin match ty with
+    | Ptr rty -> begin
+      let id = gensym "load" in
+      rty, Id id, ( I (id, Load (ty, op)) )::stream
+    end
+    | _ -> (
+      print_endline (string_of_ty ty);
+      print_endline (string_of_operand op);
+      failwith "expected pointer"
+    )
+  end
+
+  
+(* let printops ((ty, op, stream): Ll.ty * Ll.operand * stream) : Ll.ty * Ll.operand * stream = 
+  print_endline (string_of_ty ty);
+  print_endline (string_of_ty ty);
+  print_endline (string_of_ty ty); *)
+
+  
 (* dummynode with debugging label *)
 let dummynode (exp:'a) (label:string): 'a node = 
     { elt=exp; loc=(label, (0, 0), (0, 0))}
 
-let access_ll_oat_array (arrty:Ll.ty) (arrop:Ll.operand) (i:Ll.operand): 
+let ty_of_arr_el (arrty:Ll.ty) =
+  match arrty with
+    | Ptr (Struct ([ Ll.I64; Array (_, elty) ])) -> elty
+    | _ -> (
+      (print_endline (Llutil.string_of_ty arrty));
+      failwith "not valid oat array"
+    )
+
+(* let access_ll_oat_array (arrty:Ll.ty) (arrop:Ll.operand) (i:Ll.operand): 
     Ll.ty * Ll.operand * stream = begin
-  let elty = begin match arrty with
-    | Struct ([ Ll.I64; Array (_, elty) ]) -> elty
-    | _ -> failwith "not valid oat array"
+  (* let arrvaluety, arrvalueop, arrstream = arrty, arrop, [] in *)
+  let arrvaluety, arrvalueop, arrstream = load (arrty, arrop, []) in
+
+  let elty = begin match arrvaluety with
+    | Ptr (Struct ([ Ll.I64; Array (_, elty) ])) -> elty
+    | _ -> (
+      (print_endline (Llutil.string_of_ty arrvaluety));
+      (print_endline (Llutil.string_of_operand arrvalueop));
+      (print_endline (Llutil.string_of_operand i));
+      failwith "not valid oat array"
+    )
   end in
+  
   let eluid = gensym "arr_el" in
   let accessstr = [
-    I (eluid, Ll.Gep (arrty, arrop, [Ll.Const 0L; Ll.Const 1L; i]))
-  ] in
-  (elty, Ll.Id eluid, accessstr)
-end
+    I (eluid, Ll.Gep (arrvaluety, arrvalueop, [Ll.Const 0L; Ll.Const 1L; i]))
+  ] @ arrstream in
+  (Ll.Ptr elty, Ll.Id eluid, accessstr)
+end *)
 
 let cmp_bop (oatbinop: Ast.binop) (aop:Ll.operand) (bop:Ll.operand) = begin
   begin match oatbinop with
@@ -332,18 +369,18 @@ let cmp_bop (oatbinop: Ast.binop) (aop:Ll.operand) (bop:Ll.operand) = begin
         | Ast.Gte -> Ll.Sge
         | _ -> failwith "cmp_bop 2"
       end in
-      Ll.I1, Ll.Icmp (llbinop, Ll.I1, aop, bop)
+      Ll.I1, Ll.Icmp (llbinop, Ll.I64, aop, bop)
     end
   end
 end
 
 let cmp_uop (oatunop: Ast.unop) (expop:Ll.operand) = begin
-  let llbinop, llresty = begin match oatunop with
-    | Neg -> Ll.Sub, Ll.I64
-    | Bitnot -> Ll.Xor, Ll.I64 
-    | Lognot -> Ll.Xor, Ll.I1
+  let llbinop, llresty, opa = begin match oatunop with
+    | Neg -> Ll.Sub, Ll.I64, Ll.Const 0L
+    | Bitnot -> Ll.Xor, Ll.I64, Ll.Const (-1L)
+    | Lognot -> Ll.Xor, Ll.I1, Ll.Const 1L
   end in
-  llresty, Ll.Binop (llbinop, llresty, Ll.Const 0L, expop)
+  llresty, Ll.Binop (llbinop, llresty, opa, expop)
 end
 
 (* Compiles an expression exp in context c, outputting the Ll operand that will
@@ -363,6 +400,7 @@ end
 
 *)
 
+
 let rec cmp_exp (c:Ctxt.t) ({ elt=exp; _ }:Ast.exp node) : Ll.ty * Ll.operand * stream = begin
 
   begin match exp with
@@ -373,21 +411,41 @@ let rec cmp_exp (c:Ctxt.t) ({ elt=exp; _ }:Ast.exp node) : Ll.ty * Ll.operand * 
     (* | CInt of int64 *)
     | CInt i -> (Ll.I64, Ll.Const i, [])
     (* | Id of id *)
-    | Id id -> let ty, op = List.assoc id c in (ty, op, [])
+    | Id id -> begin
+      match List.assoc_opt id c with
+        | Some (ty, op) -> load_exp (ty, op, [])
+        | None -> (
+          (print_endline id);
+          failwith "Unknown symbol"
+        )
+    end
     (* | CStr of string *)
     | CStr str -> begin
-      let gid = gensym "hoistedstr" in
-      let ty = Ll.Ptr (Ll.I8) in
-      (ty, Ll.Gid gid, [
-        G (gid, (ty, GString str))
+      let hoistedid = gensym "hoistedstr" in
+      let rawid = gensym "rawstr" in
+      let n = 1 + (String.length )str in
+
+      let rawty = (Ll.Array (n, Ll.I8)) in
+      let hoistedty = Ll.I8 in
+
+      load_exp (Ptr (Ptr hoistedty), Ll.Gid hoistedid, [
+        G (hoistedid, (Ptr hoistedty, GBitcast (Ptr rawty, Ll.GGid rawid, Ptr hoistedty)));
+        G (rawid, (rawty, GString str));
       ])
     end
     (* | Index of exp node * exp node *)
     | Index (arr, i) -> begin
       let arrty, arrop, arrstream = cmp_exp c arr in
       let _, iop, istream = cmp_exp c i in
-      let elty, elop, elstream = access_ll_oat_array arrty arrop iop in
-      (elty, elop, arrstream @ istream @ elstream)
+
+      let elty = ty_of_arr_el arrty in
+      let elptr = gensym "arr_el_ptr" in
+      
+      let ptrexp = (Ptr elty, Ll.Id elptr, [
+        I (elptr, Ll.Gep (arrty, arrop, [Ll.Const 0L; Ll.Const 1L; iop]))
+      ] @ istream @ arrstream) in
+      
+      load_exp ptrexp
     end
     (* | CArr of ty * exp node list *)
     | CArr (ty, exps) -> begin
@@ -396,36 +454,51 @@ let rec cmp_exp (c:Ctxt.t) ({ elt=exp; _ }:Ast.exp node) : Ll.ty * Ll.operand * 
       (* compile a new array initialization using the other case of cmp_exp *)
       let arrty, arrop, arrstream = cmp_exp c (
         dummynode (NewArr (ty, dummynode (CInt (Int64.of_int count)) "cmp_exp")) "cmp_exp") in
-      stream := !stream @ arrstream;
+        stream := arrstream @ !stream;
+      let llelty = cmp_ty ty in
       
       (* place expressions into array *)
       exps |> (List.iteri (fun index exp -> begin
         let _, elop, elstream = cmp_exp c exp in
-        (* simulate code of arr[i] = exp_i; *)
-        let arrelty, arrel, arraccessstr = access_ll_oat_array arrty arrop (Ll.Const (Int64.of_int index)) in
-        stream := !stream @ elstream @ arraccessstr @ [
-          I (gensym "void", Ll.Store (arrelty, elop, arrel))
-        ]
+        let elid = gensym "carr_el" in
+        let iop = Ll.Const (Int64.of_int index) in
+        stream := [
+          I (gensym "void", Ll.Store (llelty, elop, Ll.Id elid));
+          I (elid, Ll.Gep (arrty, arrop, [Ll.Const 0L; Ll.Const 1L; iop]));
+        ] @ elstream @ !stream
       end));
-      (Ll.Array (count, cmp_ty ty), arrop, !stream)
+      (arrty, arrop, !stream)
     end
     (* | NewArr of ty * exp node *)
     | NewArr (ty, exp) -> begin
       let _, sop, sstream = cmp_exp c exp in
       let aty, aop, astream = oat_alloc_array ty sop in
-      (aty, aop, sstream @ astream)
+      (aty, aop, astream @ sstream)
     end
     (* | Call of exp node * exp node list *)
     | Call (funexp, argexps) -> begin
       let stream = ref [] in
       let llargs = ref [] in
       (* cmp function exp *)
-      let funty, funop, funstream = cmp_exp c funexp in
-      stream := !stream @ funstream;
+      (* let funty, funop, funstream = cmp_exp c funexp in *)
+      let funty, funop = match funexp.elt with
+        | Id id -> begin match List.assoc_opt id c with
+            | Some (ty, op) -> ty, op
+            | None -> (
+              (print_endline id);
+              failwith "unknown function"
+            )
+          end
+        | _ -> failwith "function exp must be identifier"
+      in
       (* get return type and check number args *)
       let paramtys, retty = begin match funty with
-        | Ll.Fun (paramtys, retty) -> paramtys, retty
-        | _ -> failwith "not a function"
+        | Ptr (Ll.Fun (paramtys, retty)) -> paramtys, retty
+        | _ -> (
+          (print_endline (Llutil.string_of_ty funty));
+          (print_endline (Llutil.string_of_operand funop));
+          failwith "not a function"
+        )
       end in
       if List.length argexps <> List.length paramtys then begin
         failwith "incorrect number of args"
@@ -433,14 +506,14 @@ let rec cmp_exp (c:Ctxt.t) ({ elt=exp; _ }:Ast.exp node) : Ll.ty * Ll.operand * 
       (* compile args *)
       argexps |> (List.iter (fun argexp -> begin
         let argty, argop, argstream = cmp_exp c argexp in
-        stream := !stream @ argstream;
+        stream := argstream @ !stream;
         llargs := !llargs @ [(argty, argop)]
       end));
       (* make function call *)
       let retvaluid = gensym "retval" in
-      stream := !stream @ [
-        I (retvaluid, Ll.Call (funty, funop, !llargs))
-      ];
+      stream := [
+        I (retvaluid, Ll.Call (retty, funop, !llargs))
+      ] @ !stream;
       (retty, Ll.Id retvaluid, !stream)
     end
     (* | Bop of binop * exp node * exp node *)
@@ -453,21 +526,47 @@ let rec cmp_exp (c:Ctxt.t) ({ elt=exp; _ }:Ast.exp node) : Ll.ty * Ll.operand * 
       let llresty, llinstr = cmp_bop binop aop bop in
 
       (llresty, Ll.Id resuid,
-        astream @ bstream @ [ I (resuid, llinstr) ])
+      [ 
+        I (resuid, llinstr);
+      ] @ bstream @ astream)
     end
     (* | Uop of unop * exp node *)
     | Uop (unop, exp) -> begin
       let _, expop, expstream = cmp_exp c exp in
-            
       let resuid = gensym "uop_res" in
-
       let llresty, llinstr = cmp_uop unop expop in
-
       (llresty, Ll.Id resuid,
-        expstream @ [ I (resuid, llinstr) ])
+      [
+        I (resuid, llinstr);
+      ] @ expstream)
     end
   end
 end
+
+let rec cmp_lhs (c:Ctxt.t)({ elt; _ }:exp node): Ll.ty * Ll.operand * stream = 
+  begin match elt with
+    | Id id -> begin
+      match List.assoc_opt id c with
+        | Some (ty, op) -> (ty, op, [])
+        | None -> (
+          (print_endline id);
+          failwith "Unknown symbol"
+        )
+    end
+    | Index (arr, i) -> begin
+      let arrty, arrop, arrstream = cmp_exp c arr in
+      (* let arrty, arrop, arrstream = load_exp @@ cmp_lhs c arr in *)
+      let _, iop, istream = cmp_exp c i in
+
+      let elty = ty_of_arr_el arrty in
+      let elid = gensym "lhs_ix_el" in
+
+      (Ll.Ptr elty, Ll.Id elid, [
+        I (elid, Ll.Gep (arrty, arrop, [Ll.Const 0L; Ll.Const 1L; iop]))
+      ] @ arrstream @ istream)
+    end
+    | _ -> failwith "Invalid lhs exp"
+  end
 
 (* Compile a statement in context c with return typ rt. Return a new context, 
    possibly extended with new local bindings, and the instruction stream
@@ -501,26 +600,27 @@ let rec cmp_stmt (c:Ctxt.t) (rt:Ll.ty) ({ elt=stmtelt; _ }:Ast.stmt node) : Ctxt
     (* | Decl of vdecl *)
     | Decl (id, exp) -> begin
         (* %_x7 = alloca { i64, [0 x i64] }*                              ;; (1) *)
+        let localsym = gensym "local_" ^ id in
         let ty, op, stream = cmp_exp c exp in 
-        ( c, stream @ [
-          E (id, Ll.Alloca ty);
-          I (gensym "void", Ll.Store (ty, op, Id id))
-        ])
+        ( Ctxt.add c id (Ptr ty, Id localsym), [
+          I (gensym "void", Ll.Store (ty, op, Id localsym));
+          E (localsym, Ll.Alloca ty);
+        ] @ stream)
     end
     (* | Assn of exp node * exp node *)
     | Assn (lhs, rhs) -> begin
-      let _, destop, deststream = cmp_exp c lhs in 
-      let valty, valop, valstream = cmp_exp c rhs in 
-      ( c, deststream @ valstream @ [
-        I (gensym "void", Ll.Store (valty, valop, destop))
-      ])
+      let _, lhsop, lhsstream = cmp_lhs c lhs in
+      let rhsty, rhsop, rhsstream = cmp_exp c rhs in 
+      ( c, [
+        I (gensym "void", Ll.Store (rhsty, rhsop, lhsop))
+      ] @ rhsstream @ lhsstream)
     end
     (* | Ret of exp node option *)
     | Ret (Some exp) -> begin
       let ty, op, stream  = cmp_exp c exp in 
-      (c, stream @ [
+      (c, [
         T (Ll.Ret (ty, Some op))
-      ])
+      ] @ stream)
     end
     | Ret None -> begin
       (c, [
@@ -547,14 +647,16 @@ let rec cmp_stmt (c:Ctxt.t) (rt:Ll.ty) ({ elt=stmtelt; _ }:Ast.stmt node) : Ctxt
       let _, thenll = cmp_block c Ll.Void thenblock in
       let _, elsell = cmp_block c Ll.Void elseblock in
 
-      (c, condstream @ [
-        T (Ll.Cbr (condop, thenlabel, elselabel));
-        L thenlabel;
-      ] @ thenll @ [
-        L elselabel;
-      ] @ elsell @ [
+      (c, [
         L endiflabel;
-      ])
+        T (Ll.Br endiflabel);
+        ] @ elsell @ [
+        L elselabel;
+        T (Ll.Br endiflabel);
+      ] @ thenll @ [
+        L thenlabel;
+        T (Ll.Cbr (condop, thenlabel, elselabel));
+      ] @ condstream)
     end
     (* | While of exp node * stmt node list *)
     | While (condexp, wblock) -> begin
@@ -569,13 +671,15 @@ let rec cmp_stmt (c:Ctxt.t) (rt:Ll.ty) ({ elt=stmtelt; _ }:Ast.stmt node) : Ctxt
 
       let _, blockll = cmp_block c Ll.Void wblock in
 
-      (c, condstream @ [
-        L condlabel;
-        T (Ll.Cbr (condop, whileblocklabel, whileendlabel));
-        L whileblocklabel;
-      ] @ blockll @ [
-        T (Ll.Br condlabel);
+      (c, [
         L whileendlabel;
+        T (Ll.Br condlabel);
+      ] @ blockll @ [
+        L whileblocklabel;
+        T (Ll.Cbr (condop, whileblocklabel, whileendlabel));
+      ] @ condstream @ [
+        L condlabel;
+        T (Ll.Br (condlabel))
       ])
     end
     (* | For of vdecl list * exp node option * stmt node option * stmt node list *)
@@ -610,8 +714,6 @@ and cmp_block (c:Ctxt.t) (rt:Ll.ty) (stmts:Ast.block) : Ctxt.t * stream =
       c, code >@ stmt_code
     ) (c,[]) stmts
 
-
-
 (* Adds each function identifer to the context at an
    appropriately translated type.  
 
@@ -625,14 +727,50 @@ let cmp_function_ctxt (c:Ctxt.t) (p:Ast.prog) : Ctxt.t =
       | _ -> c
     ) c p 
 
+let ty_of_gexp ({ elt; _ }:exp node): ty = begin match elt with
+  | CNull rty -> Ast.TRef rty
+  | CBool _ -> Ast.TBool
+  | CInt _ -> Ast.TInt
+  | CStr _ -> Ast.TRef (Ast.RString)
+  | CArr (ty, _) -> Ast.TRef (Ast.RArray (ty))
+  | _ -> failwith "illegal global exp"
+end
+
 (* Populate a context with bindings for global variables 
    mapping OAT identifiers to LLVMlite gids and their types.
 
    Only a small subset of OAT expressions can be used as global initializers
    in well-formed programs. (The constructors starting with C). 
 *)
-let cmp_global_ctxt (c:Ctxt.t) (p:Ast.prog) : Ctxt.t =
-  failwith "cmp_global_ctxt not implemented"
+let cmp_global_ctxt (c:Ctxt.t) (p:Ast.prog) : Ctxt.t = begin
+  let cref = ref c in
+  let cmp_gdecl decl = begin match decl with
+    | Gvdecl { elt={ name; init }; _ } -> begin
+      let ty = cmp_ty (ty_of_gexp init) in
+      let op = Gid name in
+      cref := Ctxt.add !cref name (Ptr ty, op);
+    end
+    | Gfdecl { elt={ frtyp; fname; args; _ }; _ } -> begin
+      let argtypes = List.map (fun (astty, _) -> cmp_ty astty) args in
+      let ty = Ll.Ptr (Ll.Fun (argtypes, cmp_ret_ty frtyp)) in
+      let op = Gid fname in
+      cref := Ctxt.add !cref fname (ty, op);
+    end
+  end in
+  List.iter cmp_gdecl p;
+  !cref
+end
+
+let print_stream (fname)(stream: elt list) = begin
+  print_endline ("\n REVERSED stream of: " ^ fname);
+  List.iter (fun (e:elt) -> begin match e with
+    | L lbl -> print_endline ("L  " ^ lbl)
+    | I (uid, instr) -> print_endline ("I  %" ^ uid ^ " = " ^ (Llutil.string_of_insn instr))
+    | T term -> print_endline ("T  " ^ (Llutil.string_of_terminator term))
+    | G (gid, gdecl) -> print_endline ("G  @" ^ gid ^ " = " ^ (Llutil.string_of_gdecl gdecl))
+    | E (uid, instr) -> print_endline ("E  %" ^ uid ^ " = " ^ (Llutil.string_of_insn instr))
+  end) (List.rev stream);
+end
 
 (* Compile a function declaration in global context c. Return the LLVMlite cfg
    and a list of global declarations containing the string literals appearing
@@ -646,8 +784,53 @@ let cmp_global_ctxt (c:Ctxt.t) (p:Ast.prog) : Ctxt.t =
    5. Use cfg_of_stream to produce a LLVMlite cfg from 
  *)
 
-let cmp_fdecl (c:Ctxt.t) (f:Ast.fdecl node) : Ll.fdecl * (Ll.gid * Ll.gdecl) list =
-  failwith "cmp_fdecl not implemented"
+let cmp_fdecl (c:Ctxt.t) ({ elt={ frtyp; fname; args; body }; _ }:Ast.fdecl node) : Ll.fdecl * (Ll.gid * Ll.gdecl) list = begin
+  (* generate dummy statements for each parameter *)
+  let stream = ref [] in
+  let cref = ref c in
+  let llfparams = ref [] in
+  
+  let cmp_param (index: int)(paramty, paramid) = begin
+    let llty = cmp_ty paramty in
+    let fparam = gensym ("param_" ^ (Int.to_string index)) in
+    stream := [
+      I (gensym "void", Ll.Store (llty, Id fparam, Id paramid));
+      E (paramid, Ll.Alloca (llty));
+    ] @ !stream;
+    cref := Ctxt.add !cref paramid (Ll.Ptr llty, Id paramid);
+    llfparams := !llfparams @ [ fparam ];
+  end in
+  List.iteri cmp_param args;
+
+  let retstmt = match frtyp with
+    | Ast.RetVoid -> Ast.Ret None
+    | Ast.RetVal (Ast.TInt) -> Ast.Ret (Some (dummynode (Ast.CInt 0L) "dummyval"))
+    | Ast.RetVal (Ast.TBool) -> Ast.Ret (Some (dummynode (Ast.CBool false) "dummyval"))
+    | Ast.RetVal (Ast.TRef ty) -> Ast.Ret (Some (dummynode (Ast.CNull ty) "dummyval"))
+  in
+
+  let extbody = body @ [
+    dummynode retstmt "dummy return void";
+  ] in
+
+  (* compile function *)
+  let _, bstream = cmp_block !cref (cmp_ret_ty frtyp) extbody in
+  stream := bstream @ !stream;
+
+  (* print_stream fname !stream; *)
+
+  let cfg, gdecls = cfg_of_stream !stream in
+
+  (* type fdecl = { f_ty : fty; f_param : uid list; f_cfg : cfg } *)
+  let llfdecl = {
+    f_ty = cmp_fty (List.map (fun (aty, _) -> aty) args, frtyp);
+    f_param = !llfparams;
+    f_cfg = cfg;
+  } in
+
+  (llfdecl, gdecls)
+end
+
 
 (* Compile a global initializer, returning the resulting LLVMlite global
    declaration, and a list of additional global declarations.
@@ -661,8 +844,66 @@ let cmp_fdecl (c:Ctxt.t) (f:Ast.fdecl node) : Ll.fdecl * (Ll.gid * Ll.gdecl) lis
      be an array of pointers to arrays emitted as additional global declarations.
 *)
 
-let rec cmp_gexp c (e:Ast.exp node) : Ll.gdecl * (Ll.gid * Ll.gdecl) list =
-  failwith "cmp_gexp not implemented"
+let rec cmp_gexp c ({ elt; _ }:Ast.exp node) : Ll.gdecl * (Ll.gid * Ll.gdecl) list =
+  begin match elt with 
+    (* | CNull of rty *)
+    | CNull rty -> begin
+      (Ptr (cmp_rty rty), Ll.GNull), []
+    end
+    (* | CBool of bool *)
+    | CBool b -> begin
+      (Ll.I1, Ll.GInt (if b then 1L else 0L)), []
+    end
+    (* | CInt of int64 *)
+    | CInt i -> begin
+      (Ll.I64, Ll.GInt i), []
+    end
+    (* | CStr of string *)
+    | CStr s -> begin
+      let len = 1 + String.length s in
+      let rawid = gensym "rawgstr" in
+      let rawty = Ll.Array (len, Ll.I8) in
+      let strty = Ll.I8 in
+
+      (Ptr strty, Ll.GBitcast (Ptr rawty, GGid rawid, Ptr strty)), [
+        (rawid, (rawty, Ll.GString s))
+      ]
+    end
+    (* | CArr of ty * exp node list *)
+    | CArr (ty, exps) -> begin
+      let len = List.length exps in
+      let llty = cmp_ty ty in
+      (* @arr = global { i64, [0 x i64] }* bitcast 
+          ({ i64, [4 x i64] }* @_global_arr5 to { i64, [0 x i64] }* ) 
+      @_global_arr5 = global { i64, [4 x i64] } 
+          { i64 4, [4 x i64] [ i64 1, i64 2, i64 3, i64 4 ] } *)
+      let helpty = Ll.Struct [ Ll.I64; Ll.Array (len, llty)] in
+      let helpid = gensym "global_arr" in
+      
+      let mainty = Ll.Struct [ Ll.I64; Ll.Array (0, llty)] in
+      let gdecl = Ll.GBitcast (Ptr helpty, GGid helpid, Ptr mainty) in
+
+      let entries = ref [] in
+      let helpers = ref [] in
+
+      let cmp_arr_entry exp = begin
+        let gdecl, nexthelpers = cmp_gexp c exp in
+        helpers := !helpers @ nexthelpers;
+        entries := !entries @ [ gdecl ]
+      end in
+      List.iter cmp_arr_entry exps;
+      
+      helpers := !helpers @ [
+        (helpid, (helpty, GStruct [ 
+          (Ll.I64, Ll.GInt (Int64.of_int len));
+          (Ll.Array (len, llty), (Ll.GArray !entries))
+        ]))
+      ];
+
+      (Ptr mainty, gdecl), !helpers
+    end
+    | _ -> failwith "Illegal node in global expression."
+  end
 
 (* Oat internals function context ------------------------------------------- *)
 let internals = [
@@ -683,6 +924,8 @@ let builtins =
 
 (* Compile a OAT program to LLVMlite *)
 let cmp_prog (p:Ast.prog) : Ll.prog =
+  (* Printexc.record_backtrace true; *)
+
   (* add built-in functions to context *)
   let init_ctxt = 
     List.fold_left (fun c (i, t) -> Ctxt.add c i (Ll.Ptr t, Gid i))
